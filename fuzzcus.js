@@ -63,24 +63,22 @@ function FUZZ_RANDOM_PROPERTY(o = newObject(), sizeref = new ArrayBuffer()) {
 }
 
 function fuzzcus(target = fuzzy_target, CYCLES = 0, P_DEPTH = 0, P_COUNT = 0) {
-  // Fuzz for each size
-
+	// Fuzz for each size
 	for(CYLCE = CYCLES; CYLCE >= 0; CYLCE--){
 
 		var isize = new Uint32Array(1);
 		isize[0] = INT(Math.random()*UINT16_MAX);
-		
+
 		instance = FUZZ_RANDOM_TYPE(isize[0]);
 
 		try {
 
 			// Fuzz random properties
 			for(PROP = P_COUNT; PROP >= 0; PROP--){
-				
+
 				FUZZ_RANDOM_PROPERTY(instance, isize.buffer);
-
-
 				// Fuzz each property to a certain depth
+				// UNIMP
 
 			}
 
@@ -90,16 +88,16 @@ function fuzzcus(target = fuzzy_target, CYCLES = 0, P_DEPTH = 0, P_COUNT = 0) {
 				isize[0] += fsize;
 				instance.fill(FUZZ_RANDOM_TYPE(fsize));
 			}
-
+			
 			console.log("FUZZ OBJECT WITH SIZE +/-: "+isize);
-
 		} 
+		
 		catch(exc) {
 			console.warn('[FUZZ_PROP]: '+exc.message);
 		}
 
-		
 		console.log(instance); // log the instance
+		
 		try {
 			target(instance);
 		}
@@ -107,5 +105,5 @@ function fuzzcus(target = fuzzy_target, CYCLES = 0, P_DEPTH = 0, P_COUNT = 0) {
 			console.warn('[FUZZ_TARGET]: '+exc.message);
 		}
 
-	}
-
+	} // END_OF_CYCLES
+} // END_OF_FUZZCUS
