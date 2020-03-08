@@ -111,3 +111,10 @@ function fuzzcus(target = fuzzy_target, CYCLES = 0, P_DEPTH = 0, P_COUNT = 0) {
 
 	} // END_OF_CYCLES
 } // END_OF_FUZZCUS
+
+
+// Example Usage
+var cycles = 100;
+var propertyDepth = 3;
+var propertyCount = 50;
+fuzzcus(fuzzy_target, cycles, propertyDepth, propertyCount); 
