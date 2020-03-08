@@ -47,6 +47,11 @@ function FUZZ_UINT32_RANDOM() {
   return Math.floor(Math.random() * UINT32_MAX);
 }
 
+function FUZZ_FLIP(N) {
+	let FLIP_BIT = 70;
+	return N ^ FLIP_BIT;
+}
+
 function FUZZ_RANDOM_TYPE(INITIALIZER) {
   var TYPES_MAX = FUZZ_TYPES.length;
   var TYPES_RND =  Math.floor(Math.random() * TYPES_MAX);
