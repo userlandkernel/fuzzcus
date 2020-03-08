@@ -71,6 +71,10 @@ function FUZZ_RANDOM_PROPERTY(o = newObject(), sizeref = new ArrayBuffer()) {
   
 }
 
+function TYPE_CONFUSED(expectedType, object){
+	return typeof object !== expectedType;
+}
+
 function fuzzcus(target = fuzzy_target, CYCLES = 0, P_DEPTH = 0, P_COUNT = 0) {
 	// Fuzz for each size
 	for(CYLCE = CYCLES; CYLCE >= 0; CYLCE--){
