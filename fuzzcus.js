@@ -1,3 +1,7 @@
+/*
+ * WIP: WebAssembly fuzzer
+*/
+
 let wasmImports = {
   env: {
     // null
