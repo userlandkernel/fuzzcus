@@ -47,6 +47,14 @@ function FUZZ_UINT32_RANDOM() {
   return Math.floor(Math.random() * UINT32_MAX);
 }
 
+function FUZZ_BOOL_RANDOM() {
+	return Math.floor(Math.random() * UINT32_MAX) % 2;
+}
+
+function FUZZ_FLOAT_RANDOM(){
+	return new AnimationEvent('').timeStamp * Math.random();
+}
+
 function FUZZ_FLIP(N) {
 	let FLIP_BIT = 70;
 	return N ^ FLIP_BIT;
@@ -71,11 +79,46 @@ function FUZZ_RANDOM_PROPERTY(o = newObject(), sizeref = new ArrayBuffer()) {
   
 }
 
+function FUZZ_RANDOM_WASM_GLOBAL() {
+	
+	var t = "f64";
+	switch(FUZZ_BOOL_RANDOM() + FUZZ_BOOL_RANDOM()) {
+		case 2:
+			t = "f64";
+			break;
+		case 1:
+			t = "f32";
+			break;
+		case 0:
+			t = "i32";
+			break;
+		default:
+			t = "f64";
+			break;
+	}
+	return new WebAssembly.Global({value: t, mutable: FUZZ_BOOL_RANDOM()}, FUZZ_BOOL_RANDOM() ? FUZZ_FLOAT_RANDOM() : FUZZ_UINT32_RANDOM());
+}
+
 function TYPE_CONFUSED(expectedType, object){
 	return typeof object !== expectedType;
 }
 
 function fuzzcus(target = fuzzy_target, CYCLES = 0, P_DEPTH = 0, P_COUNT = 0) {
+	
+	var M = 0x100;
+	
+	var nums = new Array(M);
+	nums.fill(FUZZ_UINT8_RANDOM());
+	
+	var strings = new Array(M);
+	strings.fill("HAXX");
+	
+	var arrays = new Array(M);
+	arrays.push([]);
+	
+	
+
+	
 	// Fuzz for each size
 	for(CYLCE = CYCLES; CYLCE >= 0; CYLCE--){
 
