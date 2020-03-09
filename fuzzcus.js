@@ -2,6 +2,10 @@
  * WIP: WebAssembly fuzzer
 */
 
+function callback(args){
+	alert(args);
+}
+
 let wasmImports = {
   env: {
     // null
@@ -11,162 +15,215 @@ let wasmImports = {
   }
 };
 
-var fuzzy_target = function(receiver) {
-  let magic = new Uint8Array([0,97,115,109,1,0,0,0,1,144,128,128,128,0,3,96,1,127,1,127,96,2,127,127,1,127,96,0,1,127,2,142,128,128,128,0]);
-	var wasmCode = new Uint8Array([...magic, ...receiver]);
-  wasmCode = wasmCode.slice(0, 0x1000);
-	var wasmModule =  new WebAssembly.Module(wasmCode);
-	var instance = new WebAssembly.Instance(wasmModule, wasmImports);
-	console.log(instance);
-};
+let Fuzzcus = function Fuzzcus(TGT = callback, CYCLES = 0, CYCLEDEPTH = 0) {
 
-let UINT32_MAX = new Uint32Array([-1])[0];
-let UINT16_MAX = new Uint16Array([-1])[0];
-let UINT8_MAX = new Uint8Array([-1])[0];
+	console.info("[FUZZCUS]: Fuzzing "+CYCLES+" cycles with depth "+CYCLEDEPTH);
 
-var FUZZ_TYPES = [Int8Array, Int16Array, Int32Array, Uint8Array, Uint16Array, Uint32Array, Float64Array];
-var FUZZ_SIZE_MAX = UINT32_MAX;
+	window.UINT32_MAX = new Uint32Array([-1])[0];
+	window.UINT16_MAX = new Uint16Array([-1])[0];
+	window.UINT8_MAX = new Uint8Array([-1])[0];
 
-function INT(F){
-  return Math.floor(F);
-}
+	var wasm_basic_module = new Uint8Array([0,97,115,109,1,0,0,0,1,133,128,128,128,0,1,96,0,1,127,3,130,128,128,128,0,1,0,4,132,128,128,128,0,1,112,0,0,5,131,128,128,128,0,1,0,1,6,129,128,128,128,0,0,7,145,128,128,128,0,2,6,109,101,109,111,114,121,2,0,4,109,97,105,110,0,0,10,138,128,128,128,0,1,132,128,128,128,0,0,65,42,11]);
 
-function FUZZ_SIZE_RANDOM() {
-  return Math.floor(Math.random() * FUZZ_SIZE_MAX);
-}
+	var seed8 = 0;
+	var seed16 = 0;
+	var seed32 = 0;
+	var seedfloat = 0;
 
-function FUZZ_UINT8_RANDOM() {
-  return Math.floor(Math.random() * UINT8_MAX);
-}
+	var iseed8 = 0;
+	var iseed16 = 0;
+	var iseed32 = 0;
+	var iseedfloat = 0;
 
-function FUZZ_UINT16_RANDOM() {
-  return Math.floor(Math.random() * UINT16_MAX);
-}
+	this.toInt = function(v) {
+		return Math.floor(parseInt(v));
+	};
 
-function FUZZ_UINT32_RANDOM() {
-  return Math.floor(Math.random() * UINT32_MAX);
-}
+	this.genBool = function(){
+		return Math.floor(Math.random() * UINT32_MAX) % 2;
+	};
 
-function FUZZ_BOOL_RANDOM() {
-	return Math.floor(Math.random() * UINT32_MAX) % 2;
-}
+	this.genUint8 = function() {
+		return Math.floor(Math.random() * UINT8_MAX);
+	};
 
-function FUZZ_FLOAT_RANDOM(){
-	return new AnimationEvent('').timeStamp * Math.random();
-}
-
-function FUZZ_FLIP(N) {
-	let FLIP_BIT = 70;
-	return N ^ FLIP_BIT;
-}
-
-function FUZZ_RANDOM_TYPE(INITIALIZER) {
-  var TYPES_MAX = FUZZ_TYPES.length;
-  var TYPES_RND =  Math.floor(Math.random() * TYPES_MAX);
-  return new FUZZ_TYPES[TYPES_RND](INITIALIZER);
-}
-
-function FUZZ_RANDOM_PROPERTY(o = newObject(), sizeref = new ArrayBuffer()) {
-
-  var NUMERIC = Math.floor(INT(Math.random() * UINT32_MAX % 2));
-
-  if(NUMERIC){
-    var isize = Math.random()*UINT16_MAX;
-    var INDEX_RND = Math.floor(INT(Math.random() * UINT8_MAX));
-    o[INDEX_RND] = FUZZ_RANDOM_TYPE(INT(isize));
-    new Uint32Array(sizeref)[0] += isize;
-  }
-  
-}
-
-function FUZZ_RANDOM_WASM_GLOBAL() {
-	
-	var t = "f64";
-	switch(FUZZ_BOOL_RANDOM() + FUZZ_BOOL_RANDOM()) {
-		case 2:
-			t = "f64";
-			break;
-		case 1:
-			t = "f32";
-			break;
-		case 0:
-			t = "i32";
-			break;
-		default:
-			t = "f64";
-			break;
+	this.genUint16 = function() {
+		return Math.floor(Math.random() * UINT16_MAX);
 	}
-	return new WebAssembly.Global({value: t, mutable: FUZZ_BOOL_RANDOM()}, FUZZ_BOOL_RANDOM() ? FUZZ_FLOAT_RANDOM() : FUZZ_UINT32_RANDOM());
-}
 
-function TYPE_CONFUSED(expectedType, object){
-	return typeof object !== expectedType;
-}
+	this.genUint32 = function() {
+		return Math.floor(Math.random() * UINT32_MAX);
+	}
 
-function fuzzcus(target = fuzzy_target, CYCLES = 0, P_DEPTH = 0, P_COUNT = 0) {
-	
-	var M = 0x100;
-	
-	var nums = new Array(M);
-	nums.fill(FUZZ_UINT8_RANDOM());
-	
-	var strings = new Array(M);
-	strings.fill("HAXX");
-	
-	var arrays = new Array(M);
-	arrays.push([]);
-	
-	
+	this.genFloat = function() {
+		return 1337.1337 * Math.random() * 0x1000000;
+	}
 
-	
-	// Fuzz for each size
-	for(CYLCE = CYCLES; CYLCE >= 0; CYLCE--){
+	this.genTypedArray = function(len = 0) {
+		let _types = [Int8Array, Int16Array, Int32Array, Uint8Array, Uint16Array, Uint32Array, Float64Array];
+		return new _types[Math.floor(Math.random()*_types.length)](len);
+	}
 
-		var isize = new Uint32Array(1);
-		isize[0] = INT(Math.random()*UINT16_MAX);
+	this.genWASMGlobalType = function() {
+		let _wasmglobaltypes = ["f64", "f32", "i64", "i32"];
+		return _wasmglobaltypes[this.toInt(Math.random()*_wasmglobaltypes.length)];
+	}
 
-		instance = FUZZ_RANDOM_TYPE(isize[0]);
+	this.genRandomNumber = function() {
+		let _numberTypeGenerators = [this.genUint8, this.genUint16, this.genUint32, this.genFloat];
+		return _numberTypeGenerators[this.toInt(Math.random()*_numberTypeGenerators.length)]();
+	}
 
-		try {
+	this.init = function() {
+		iseed8 = this.genUint8();
+		iseed16 = this.genUint16();
+		iseed32 = this.genUint32();
+		iseedfloat = this.genFloat();
+		seed8 = iseed8;
+		seed16 = iseed16;
+		seed32 = iseed32;
+		seedfloat = iseedfloat;
+		console.info("[FUZZCUS][CYCLE "+CYCLES+"]: SEED8: "+seed8+" SEED16: "+seed16+" SEED32: "+seed32+" SEEDFLOAT: "+seedfloat);
+	}
 
-			// Fuzz random properties
-			for(PROP = P_COUNT; PROP >= 0; PROP--){
 
-				FUZZ_RANDOM_PROPERTY(instance, isize.buffer);
-				// Fuzz each property to a certain depth
-				// UNIMP
+	function s_next(which){
+		if(which == 8 || which == 'a')
+			seed8 = seed8 >> 1;
+		else if(which == 16 || which == 'a')
+			seed16 = seed16 >> 1;
+		else if(which == 32 || which == 'a')
+			seed32 = seed32 >> 1;
+		else if(which == 'f' || which == 'a')
+			seedfloat = parseFloat(seedfloat >> 1.0);
+	}
 
+	while(CYCLES > 0) {
+
+		this.init();
+
+		console.info("[FUZZCUS]: Creating numbers...");
+		var numbers = new Array(CYCLEDEPTH);
+		for(i = 0; i < CYCLEDEPTH; i++) {
+			numbers.fill(seed8);
+			s_next(8);
+		}
+
+		console.info("[FUZZCUS]: Creating strings...");
+		var strings = new Array(CYCLEDEPTH);
+		strings.fill("main");
+
+		console.info("[FUZZCUS]: Creating arrays...");
+		var arrays = new Array(CYCLEDEPTH);
+		arrays.fill([]);
+
+		console.info("[FUZZCUS]: Creating function references...");
+		var funcrefs = new Array(CYCLEDEPTH);
+		funcrefs.fill(0);
+
+		console.info("[FUZZCUS]: Creating WASM globals...");
+		var wasmglobals = new Array(CYCLEDEPTH);
+		for(i = 0; i < CYCLEDEPTH; i++){
+			var rwasmtype = this.genWASMGlobalType();
+			var rmutable = this.genBool();
+			var rnum = this.genRandomNumber();
+			console.warn("[FUZZCUS][WGLOBAL_CREATE]: type: "+rwasmtype+" rmutable: "+rmutable+" rnum: "+rnum);
+			try {
+				wasmglobals[i] = new WebAssembly.Global({value:rwasmtype, mutable:rmutable}, rnum);
+			} catch(exc){
+				console.warn("[FUZZCUS][WGLOBAL_CREATE]: "+exc.message);
+			}
+			s_next('a');
+		}
+
+		console.info("[FUZZCUS]: Creating WASM tables...");
+		var wasmtables = new Array(CYCLEDEPTH);
+		for(i =0; i < CYCLEDEPTH; i++){
+			try {
+				wasmtables[i] = new WebAssembly.Table({element: "anyfunc", initial: seed8, maximum: seed8});
+			} catch(exc){
+				console.warn("[FUZZCUS][WTABLE_CREATE]: "+exc.message);
+			}
+			s_next(8);
+		}
+
+		console.info("[FUZZCUS]: Creating WASM memories...");
+		var wasmrams = new Array(CYCLEDEPTH);
+		for(i = 0; i < CYCLEDEPTH; i++){
+			try {
+				if(this.genBool())
+					wasmrams[i] = new WebAssembly.Memory({initial:seed8, maximum:seed8});
+				else
+					wasmrams[i] = new WebAssembly.Memory({initial: seed8});
+			} catch(exc){
+				console.warn("[FUZZCUS][WMEM_CREATE]: "+exc.message);
+			}
+			s_next(8);
+		}
+
+		console.info("[FUZZCUS]: Creating WASM modules...");
+		var wasmmodules = new Array(CYCLEDEPTH);
+		wasmmodules.fill(new WebAssembly.Module(wasm_basic_module));
+
+		console.info("[FUZZCUS]: Creating WASM instances...");
+		var wasminstances = new Array(CYCLEDEPTH);
+		for(i = 0; i < CYCLEDEPTH; i++) {
+
+			var contents = this.genBool() + this.genBool() + this.genBool();
+			var rmod = wasmmodules[this.toInt(Math.random() * wasmmodules.length - 1)];
+
+			if( contents == 3 ) // global
+			{
+				try {
+					var rglobal = wasmglobals[this.toInt(Math.random() * wasmglobals.length)];
+					wasminstances[i] = new WebAssembly.Instance(rmod, {
+						js: { rglobal }
+					});
+				} 
+				catch (exc) {
+					console.warn("[FUZZCUS][WASM_INSTANCE/GLOBAL]: "+exc.message);
+				}
+			}
+			else if( contents == 2 ) { // ram
+				try {
+					var rmem = wasmrams[this.toInt(Math.random() * wasmrams.length)];
+					wasminstances[i] = new WebAssembly.Instance(rmod, {
+						js: { rmem }
+					});
+		        }
+				catch (exc) {
+					console.warn("[FUZZCUS][WASM_INSTANCE/GLOBAL]: "+exc.message);
+				}
+			}
+			else if( contents == 1 ) { // table
+				try {
+					var rtable = wasmtables[this.toInt(Math.random() * wasmtables.length)];
+					wasminstances[i] = new WebAssembly.Instance(rmod, {
+						js: { rtable }
+					});
+		        }
+				catch (exc) {
+					console.warn("[FUZZCUS][WASM_INSTANCE/GLOBAL]: "+exc.message);
+				}
+			}
+			else { // no content
+				try {
+					wasminstances[i] = new WebAssembly.Instance(rmod, {});
+				} catch (exc) {
+					console.warn("[FUZZCUS][WASM_INSTANCE/GLOBAL]: "+exc.message);
+				}
 			}
 
-			// fill random
-			if(instance.fill) {
-				fsize = INT(Math.random() * 4);
-				isize[0] += fsize;
-				instance.fill(FUZZ_RANDOM_TYPE(fsize));
-			}
-			
-			console.log("FUZZ OBJECT WITH SIZE +/-: "+isize);
-		} 
-		
-		catch(exc) {
-			console.warn('[FUZZ_PROP]: '+exc.message);
 		}
 
-		console.log(instance); // log the instance
-		
-		try {
-			target(instance);
-		}
-		catch(exc) {
-			console.warn('[FUZZ_TARGET]: '+exc.message);
-		}
+		console.warn("[FUZZCUS]: Fuzzing can start now!");
+		console.info("[FUZZCUS][END][CYCLE "+CYCLES+"]: SEED8: "+seed8+" SEED16: "+seed16+" SEED32: "+seed32+" SEEDFLOAT: "+seedfloat);
 
-	} // END_OF_CYCLES
-} // END_OF_FUZZCUS
+		CYCLES--;
+
+	}
+
+	TGT("[FUZCUS]: Done fuzzing.");
 
 
-// Example Usage
-var cycles = 100;
-var propertyDepth = 3;
-var propertyCount = 50;
-fuzzcus(fuzzy_target, cycles, propertyDepth, propertyCount); 
+}
